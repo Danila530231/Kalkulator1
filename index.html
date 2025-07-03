@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Главная страница - Больница</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      text-align: center;
+      padding-top: 100px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 8px;
+      width: 400px;
+      position: relative;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .close {
+      display: none; 
+    }
+    input {
+      width: 95%;
+      padding: 10px;
+      margin-top: 8px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    label {
+      display: block;
+      text-align: left;
+    }
+    .modal-content button {
+      width: 100%;
+      background-color: #4CAF50;
+    }
+    .success-message {
+      margin-top: 20px;
+      font-size: 18px;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>Добро пожаловать в информационную систему «Больница»</h1>
+  <button onclick="openModal()">Регистрация</button>
+  <div id="regModal" class="modal">
+    <div class="modal-content">
+      <h2>Регистрация</h2>
+      <form id="regForm">
+        <label>Фамилия:<input type="text" name="lastname" required></label>
+        <label>Имя:<input type="text" name="firstname" required></label>
+        <label>Отчество:<input type="text" name="middlename" required></label>
+        <label>Город:<input type="text" name="city" required></label>
+        <label>Email:<input type="email" name="email" required></label>
+        <label>Телефон:<input type="tel" name="phone" required></label>
+        <label>Пароль:<input type="password" name="password" required></label>
+        <label>Повторите пароль:<input type="password" name="confirm_password" required></label>
+        <button type="submit">Зарегистрироваться</button>
+      </form>
+    </div>
+  </div>
+  <div id="message" class="success-message"></div>
+  <script>
+    function openModal() {
+      document.getElementById("regModal").style.display = "block";
+    }
+    function closeModal() {
+      document.getElementById("regModal").style.display = "none";
+    }
+    document.getElementById("regForm").addEventListener("submit", function(e) {
+      e.preventDefault(); // Отключаем обычную отправку формы
+      // Здесь можно отправить данные на сервер через fetch/AJAX, если нужно
+      // Закрываем модальное окно
+      closeModal();
+      // Показываем сообщение об успешной регистрации
+      document.getElementById("message").textContent = "Регистрация прошла успешно!";
+    });
+  </script>
+</body>
+</html>
