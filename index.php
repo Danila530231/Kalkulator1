@@ -1,0 +1,247 @@
+<?php
+$host = 'localhost';
+$user = 'root';
+$password = '';
+$database = 'estimate';
+
+$conn = new mysqli(
+    $host,
+    $user,
+    $password,
+    $database
+);
+if ($conn->connect_error) {
+    die('Ошибка подключения к базе данных: ' . $conn->connect_error);
+}
+$conn->set_charset('utf8mb4');
+$sql = "
+    CREATE TABLE IF NOT EXISTS estimate_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        quantity DECIMAL(10,2) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+";
+$conn->query($sql);
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    if ($action === 'add') {
+        $name = trim($_POST['name'] ?? '');
+        $quantity = (float)($_POST['quantity'] ?? 0);
+        $price = (float)($_POST['price'] ?? 0);
+        if (
+            $name === '' ||
+            $quantity <= 0 ||
+            $price < 0
+        ) {
+            $error = 'Заполните все поля корректно.';
+        } else {
+            $stmt = $conn->prepare("
+                INSERT INTO estimate_items
+                (name, quantity, price)
+                VALUES (?, ?, ?)
+            ");
+            $stmt->bind_param(
+                'sdd',
+                $name,
+                $quantity,
+                $price
+            );
+            $stmt->execute();
+            $stmt->close();
+            header('Location: index.php');
+            exit;
+        }
+    }
+
+    if ($action === 'delete') {
+        $id = (int)($_POST['id'] ?? 0);
+        
+        if ($id > 0) {
+            $stmt = $conn->prepare("
+                DELETE FROM estimate_items
+                WHERE id = ?
+            ");
+
+            $stmt->bind_param(
+                'i',
+                $id
+            );
+
+            $stmt->execute();
+            $stmt->close();
+        }
+        header('Location: index.php');
+        exit;
+    }
+}
+
+$result = $conn->query("
+    SELECT
+        id,
+        name,
+        quantity,
+        price,
+        quantity * price AS total
+    FROM estimate_items
+    ORDER BY id DESC
+");
+
+$items = [];
+$subtotal = 0;
+
+while ($row = $result->fetch_assoc()) {
+    $row['total'] =
+        (float)$row['quantity'] *
+        (float)$row['price'];
+    $subtotal += $row['total'];
+    $items[] = $row;
+}
+
+$markup = max(
+    0,
+    (float)($_GET['markup'] ?? 0)
+);
+
+$markupValue = $subtotal * $markup / 100;
+
+$grandTotal = $subtotal + $markupValue;
+
+function money($value)
+{
+    return number_format( $value, 2, ',', ' ') . ' ₽';
+}
+?>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мини-калькулятор сметы</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="container">
+    <section class="card">
+        <header class="header">
+            <h1>
+                Мини-калькулятор сметы
+            </h1>
+        </header>
+        <form method="POST" class="form">
+            <input type="hidden" name="action" value="add">
+            <label>Название<input type="text" name="name" placeholder="Например, Цемент" required></label>
+            <label>Количество<input type="number" name="quantity" min="0.01" step="0.01" placeholder="10" required></label>
+            <label>Цена за единицу<input type="number" name="price" min="0" step="0.01" placeholder="500" required></label>
+            <button type="submit">Добавить</button>
+        </form>
+        <?php if ($error): ?>
+            <div class="message error">
+                <?= htmlspecialchars(
+                    $error
+                ) ?>
+            </div>
+        <?php endif; ?>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>
+                        Позиция
+                    </th>
+                    <th>
+                        Количество
+                    </th>
+                    <th>
+                        Цена
+                    </th>
+                    <th>
+                        Сумма
+                    </th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($items as $item): ?>
+                    <tr>
+                        <td>
+                            <?= htmlspecialchars($item['name']) ?>
+                        </td>
+                        <td>
+                            <?= $item['quantity'] ?>
+                        </td>
+                        <td>
+                            <?= money($item['price']) ?>
+                        </td>
+                        <td>
+                            <strong>
+                                <?= money($item['total']) ?>
+                            </strong>
+                        </td>
+                        <td>
+                            <form method="POST" class="delete-form">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                <button type="submit" class="delete">
+                                    Удалить
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php if (empty($items)): ?>
+                <div class="empty">
+                    Пока нет позиций.
+                    Добавьте первую позицию.
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <form method="GET" class="summary">
+            <div class="markup">
+                <label>
+                    Наценка, %
+                    <input type="number" name="markup" min="0" step="0.1" value="<?= $markup ?>">
+                </label>
+                <button type="submit">
+                    Пересчитать
+                </button>
+            </div>
+            <div class="totals">
+                <div>
+                    <span>
+                        Подытог
+                    </span>
+                    <strong>
+                        <?= money($subtotal) ?>
+                    </strong>
+                </div>
+                <div>
+                    <span>
+                        Наценка
+                    </span>
+                    <strong>
+                        <?= money($markupValue) ?>
+                    </strong>
+                </div>
+                <div class="grand-total">
+                    <span>
+                        Итого
+                    </span>
+                    <strong>
+                        <?= money($grandTotal) ?>
+                    </strong>
+                </div>
+            </div>
+        </form>
+    </section>
+</main>
+</body>
+</html>
+<?php
+$conn->close();
+?>
